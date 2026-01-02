@@ -2,33 +2,40 @@ import json
 import os
 from datetime import datetime
 
-def save_daily_data(data, folder_path, filename_prefix="recommendations"):
+def save_json_data(new_data, folder, filename_prefix):
     """
-    Saves data to JSON with Deduplication logic.
+    Robust saver: Creates folders, merges duplicates, saves JSON.
     """
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
+    os.makedirs(folder, exist_ok=True)
     date_str = datetime.now().strftime("%Y-%m-%d")
-    filename = f"{filename_prefix}_{date_str}.json"
-    filepath = os.path.join(folder_path, filename)
+    filepath = os.path.join(folder, f"{filename_prefix}_{date_str}.json")
 
-    # DEDUPLICATION & MERGE LOGIC
+    final_data = new_data
+
+    # Merge logic: If file exists, update specific stocks, don't overwrite everything
     if os.path.exists(filepath):
-        with open(filepath, 'r') as f:
-            existing_data = json.load(f)
-        
-        # Create a dict of existing stocks for O(1) lookup
-        existing_stocks = {s['ticker']: s for s in existing_data.get('stocks', [])}
-        
-        # Merge new data (Overwrite duplicates with latest scan)
-        for new_stock in data['stocks']:
-            existing_stocks[new_stock['ticker']] = new_stock
+        try:
+            with open(filepath, 'r') as f:
+                existing = json.load(f)
             
-        final_stocks = list(existing_stocks.values())
-        data['stocks'] = final_stocks
+            # Create dict for fast lookup
+            existing_stocks = {s['ticker']: s for s in existing.get('stocks', [])}
+            
+            # Update with new data
+            for stock in new_data.get('stocks', []):
+                existing_stocks[stock['ticker']] = stock
+            
+            final_data['stocks'] = list(existing_stocks.values())
+            final_data['meta'] = new_data['meta'] # Update timestamp
+        except Exception as e:
+            print(f"Warning: Could not merge data, overwriting. Error: {e}")
 
     with open(filepath, 'w') as f:
-        json.dump(data, f, indent=4)
-    
-    print(f"Data saved to {filepath}")
+        json.dump(final_data, f, indent=4)
+    print(f"✅ Data saved to {filepath}")
+
+def load_json_file(filepath):
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return {}
