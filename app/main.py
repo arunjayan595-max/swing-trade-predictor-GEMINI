@@ -1,44 +1,53 @@
 import streamlit as st
 import json
 import os
-from app.ui_components import load_css  # <--- NEW IMPORT
-from app.dashboard_pages import render_daily_view, render_weekly_view # <--- NEW IMPORT
+import glob
+from ui_components import render_card
 
-st.set_page_config(page_title="Nifty Swing Predictor", layout="wide")
+st.set_page_config(layout="wide", page_title="Swing Predictor")
 
-# Load CSS Styles
-load_css()
-
-# --- Helper Function ---
-def load_latest_scan():
-    folder = "data/daily"
-    if not os.path.exists(folder): return None
-    files = sorted(os.listdir(folder), reverse=True)
+# Helper to load latest file
+def get_latest_data(folder):
+    files = glob.glob(f"{folder}/*.json")
     if not files: return None
-    with open(f"{folder}/{files[0]}", 'r') as f: return json.load(f)
+    latest_file = max(files, key=os.path.getctime)
+    with open(latest_file) as f: return json.load(f)
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.title("Navigation")
-    view_mode = st.radio("Select View", ["Daily Action", "Weekly Structure"])
+# Sidebar
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Daily Scanner", "Weekly Structure"])
+
+if page == "Daily Scanner":
+    st.title("🚀 Daily Swing Signals")
+    data = get_latest_data("data/daily")
     
-    st.divider()
-    st.header("🧠 Emotional Log")
-    with st.form("trade_journal"):
-        st.text_input("Ticker")
-        st.slider("FOMO Level", 1, 10)
-        st.form_submit_button("Log Trade")
-
-# --- MAIN AREA ---
-st.title("📈 Swing Trade Nifty Predictor")
-data = load_latest_scan()
-
-if not data:
-    st.error("No data found. Please run the scanner.")
-else:
-    st.caption(f"Last Scan: {data['meta']['date']} | Time: {data['meta']['scan_time']}")
-    
-    if view_mode == "Daily Action":
-        render_daily_view(data)
+    if data:
+        st.info(f"Market Mood: {data['meta']['market_mood']} | Date: {data['meta']['date']}")
+        
+        # Actionable Green Stocks
+        st.subheader("✅ Buy Watchlist")
+        cols = st.columns(3)
+        greens = [s for s in data['stocks'] if s['ui_color'] == 'GREEN']
+        
+        if not greens: st.write("No signals today.")
+        
+        for idx, stock in enumerate(greens):
+            with cols[idx % 3]:
+                render_card(stock)
+                
+        # Watchlist Yellow Stocks
+        st.subheader("⚠️ Setup Forming")
+        yellows = [s for s in data['stocks'] if s['ui_color'] == 'YELLOW']
+        for stock in yellows:
+            st.text(f"{stock['ticker']} - RSI: {stock['technical']['rsi']}")
+            
     else:
-        render_weekly_view(data)
+        st.error("No Data Found. GitHub Actions haven't run yet.")
+
+elif page == "Weekly Structure":
+    st.title("📅 Weekly Trends")
+    data = get_latest_data("data/weekly")
+    if data:
+        st.table(data['stocks'])
+    else:
+        st.error("No Weekly Data Found.")
