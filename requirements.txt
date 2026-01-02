@@ -1,6 +1,7 @@
 streamlit
 pandas
 yfinance
-ta-lib-bin  # Or just numpy/pandas if manually calculating
+ta-lib-bin
 pyyaml
-plotly
+textblob
+requests
