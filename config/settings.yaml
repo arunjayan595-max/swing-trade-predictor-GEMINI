@@ -1,0 +1,22 @@
+# Technical Indicator Settings
+indicators:
+  ema:
+    period: 50
+  rsi:
+    period: 14
+    overbought: 70
+    oversold: 30
+    buy_range_min: 45
+    buy_range_max: 55
+
+# Screener Settings
+screener:
+  delivery_threshold: 60  # Percentage
+  risk_reward_min: 2.0
+
+# News Settings
+news:
+  sentiment_threshold: 0.2
+  sources:
+    - "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842653.cms"
+    - "https://www.moneycontrol.com/rss/buzzingstocks.xml"

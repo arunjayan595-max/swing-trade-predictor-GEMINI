@@ -1,0 +1,12 @@
+{
+  "alerts": {
+    "email": "",
+    "enable_email": false,
+    "enable_browser": true
+  },
+  "watchlist": [
+    "RELIANCE.NS",
+    "TCS.NS"
+  ],
+  "theme": "dark"
+}
