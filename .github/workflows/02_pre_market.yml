@@ -1,29 +1,19 @@
-name: 02 Pre-Market Check (Morning Guard)
-
+name: 02 Pre Market
 on:
   schedule:
-    # 03:00 UTC = 08:30 AM IST, Mon-Fri
-    - cron: '00 03 * * 1-5'
+    - cron: '00 03 * * 1-5' # 8:30 AM IST
   workflow_dispatch:
-
 jobs:
-  check_global_sentiment:
+  mood-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    permissions: { contents: write }
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+        with: { python-version: '3.9' }
       - run: pip install -r requirements.txt
-      
-      - name: Analyze Global Cues
-        run: python src/check_market_mood.py
-
-      - name: Update Mood File
-        uses: stefanzweifel/git-auto-commit-action@v4
+      - run: python -m src.run_market_mood
+      - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "🌅 Auto: Pre-Market Mood Update [skip ci]"
-          file_pattern: 'data/daily/market_mood.json'
+          commit_message: "🤖 Auto: Market Mood"
+          file_pattern: "data/daily/market_mood.json"
