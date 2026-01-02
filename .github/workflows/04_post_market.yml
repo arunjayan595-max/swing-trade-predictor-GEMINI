@@ -1,0 +1,35 @@
+name: 04 Sniper Scan (Post-Market)
+
+on:
+  schedule:
+    # Runs at 13:30 UTC (which is 07:00 PM IST)
+    - cron: '30 13 * * 1-5'
+  workflow_dispatch: # Allows manual trigger button
+
+jobs:
+  scan_and_commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Crucial for saving JSON back to repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Scanner Script
+        run: python src/run_scanner.py
+
+      - name: Commit and Push Results
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "🤖 Auto: Added Daily Scan Results [skip ci]"
+          file_pattern: 'data/daily/*.json'
