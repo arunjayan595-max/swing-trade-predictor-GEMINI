@@ -1,60 +1,59 @@
 import pandas as pd
 import yaml
 from datetime import datetime
-from src.data_loader import fetch_stock_data
-from src.strategies import analyze_stock
-from src.news_engine import get_stock_news  # <--- NEW IMPORT
-from src.utils import save_daily_data
+# Note: Using absolute imports assuming script is run via 'python -m src.run_scanner'
+from src.data_loader import fetch_data
+from src.strategies import apply_strategy
+from src.news_engine import analyze_sentiment
+from src.utils import save_json_data, load_json_file
 
-# Load Config
-with open("config/settings.yaml", "r") as f:
-    config = yaml.safe_load(f)
-
-def run_analysis():
-    print("Starting Post-Market Scan...")
+def main():
+    print("🚀 Starting Main Scanner...")
     
-    tickers_df = pd.read_csv("config/tickers_nifty50.csv")
-    ticker_list = tickers_df['Ticker'].tolist()
+    # 1. Load Config
+    with open("config/settings.yaml") as f: config = yaml.safe_load(f)
+    tickers = pd.read_csv("config/tickers_nifty50.csv")['Ticker'].tolist()
+    
+    # 2. Load Market Mood (Prevent crash if missing)
+    mood_data = load_json_file(config['paths']['mood'])
+    market_mood = mood_data.get('mood', 'NEUTRAL')
     
     results = []
     
-    for ticker in ticker_list:
+    for ticker in tickers:
         print(f"Scanning {ticker}...")
-        df = fetch_stock_data(ticker)
+        df = fetch_data(ticker)
         
         if df is not None:
-            # 1. Technical Analysis
-            analysis = analyze_stock(df, ticker, config)
+            # A. Run Strategy
+            analysis = apply_strategy(df, ticker, config)
             
-            # 2. News Analysis (Only if technicals are interesting)
-            # This saves API calls/time by not scanning bearish stocks
-            if analysis['status'] != "BEARISH":
-                print(f"   -> Fetching news for {ticker}")
-                news_data = get_stock_news(ticker)
+            # B. Integrate News (if stock is interesting)
+            if analysis['ui_color'] != "RED":
+                news = analyze_sentiment(ticker)
+                analysis['news'] = news
                 
-                # Merge News into Analysis
-                analysis['news_analysis'] = news_data
+                # Adjust Score based on News & Market Mood
+                if news['label'] == "POSITIVE": analysis['confidence_score'] += 10
+                if news['label'] == "NEGATIVE": analysis['confidence_score'] -= 10
+                if market_mood == "BEARISH (Gap Down Likely)": analysis['confidence_score'] -= 15
                 
-                # Adjust Confidence based on News
-                if news_data['sentiment_label'] == "POSITIVE":
-                    analysis['confidence_score'] += 10
-                elif news_data['sentiment_label'] == "NEGATIVE":
-                    analysis['confidence_score'] -= 20
-                
-                # Cap confidence at 100
-                analysis['confidence_score'] = min(100, analysis['confidence_score'])
+                # Cap Score
+                analysis['confidence_score'] = max(0, min(100, analysis['confidence_score']))
                 
                 results.append(analysis)
-
-    output_data = {
+    
+    # 3. Save Output
+    output = {
         "meta": {
             "date": datetime.now().strftime("%Y-%m-%d"),
+            "market_mood": market_mood,
             "scan_time": datetime.now().strftime("%H:%M:%S")
         },
         "stocks": results
     }
-
-    save_daily_data(output_data, config['paths']['daily_data'])
+    
+    save_json_data(output, config['paths']['daily'], "recommendations")
 
 if __name__ == "__main__":
-    run_analysis()
+    main()
